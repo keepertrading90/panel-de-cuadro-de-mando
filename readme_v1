@@ -1,0 +1,125 @@
+import os
+import sys
+
+# ==============================================================================
+# ⚙️ CONFIGURACIÓN: RUTA DE PYTHON EN RED (Y:)
+# ==============================================================================
+PYTHON_PORTABLE = r"Y:\Supply Chain\PLAN PRODUCCION\PANEL\_SISTEMA\runtime_python\python.exe"
+
+def create_file(path, content):
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content.strip())
+        print(f"    📄 Generado: {path}")
+    except Exception as e:
+        print(f"    ❌ Error en {path}: {e}")
+
+def main():
+    print("\n🏭 INICIANDO GÉNESIS RPK v7 (AUDITORÍA TOTAL + AUTO-GIT)")
+    print("======================================================")
+    
+    project_name = input("👉 Introduce el nombre del nuevo proyecto: ").strip()
+    if not project_name: return
+
+    # 1. ARQUITECTURA DE CARPETAS
+    dirs = [
+        f"{project_name}/backend/core",
+        f"{project_name}/backend/api",
+        f"{project_name}/backend/db",
+        f"{project_name}/frontend/ui",
+        f"{project_name}/frontend/assets",
+        f"{project_name}/scripts",
+        f"{project_name}/docs/logs",
+        f"{project_name}/config",
+        f"{project_name}/.agent"
+    ]
+    
+    for d in dirs: os.makedirs(d, exist_ok=True)
+
+    # 2. REGLAS MAESTRAS (.agent/rules.md)
+    rules_content = f"""
+# 🛡️ RPK AGENTIC SYSTEM STANDARD (v7.0)
+## 1. IDENTIDAD Y PROTOCOLO
+- **Rol**: Arquitecto de Software Industrial (APS).
+- **Misión**: Código robusto, validado y persistente.
+## 2. ENTORNO DE EJECUCIÓN (PORTABLE)
+- **Motor Python**: SIEMPRE usar: "{PYTHON_PORTABLE}"
+## 3. FLUJO DE TRABAJO: "ZERO-TRUST"
+- **Validación**: Usar script `ops_sync.py` para terminar tareas. No usar git manual.
+    """
+    create_file(f"{project_name}/.agent/rules.md", rules_content)
+
+    # 3. README DETALLADO (COMPACTO Y ANTI-BLOQUEO)
+    readme_content = f"""
+# 🏭 {project_name} | RPK v7.0 Industrial Standard
+
+### 🚀 CONFIGURACIÓN RÁPIDA
+- **Python Runtime:** `{PYTHON_PORTABLE}`
+- **Database:** SQLite Local.
+- **UI Standard:** RPK Red (#E30613) | Dark Mode.
+
+---
+
+### 🛠️ COMANDOS DE OPERACIÓN (SOP)
+*Usa estos comandos exactos para evitar que la terminal de la IA se bloquee:*
+
+1. **AUDITAR:** `"{PYTHON_PORTABLE}" scripts/qa_scanner.py`
+2. **SINCRONIZAR:** `"{PYTHON_PORTABLE}" scripts/ops_sync.py "mensaje"`
+
+---
+
+### 🤖 REGLAS PARA LA IA (AGENT RULES)
+- **MODO SILENCIOSO:** No uses comandos que requieran confirmación manual.
+- **RUTAS:** Usa siempre comillas dobles para la ruta de la unidad `Y:`.
+- **BLOQUEOS:** Si un comando tarda >30s, cancela y reporta log. No esperes confirmación.
+
+---
+*Manual RPK - {project_name}*
+    """
+    create_file(f"{project_name}/README.md", readme_content)
+
+    # 4. QA SCANNER (MODO SILENCIOSO)
+    qa_content = r"""
+import os, sys, ast
+def run_audit():
+    errors = 0
+    for d in ["backend", "frontend"]:
+        if not os.path.exists(d): continue
+        for root, _, files in os.walk(d):
+            for f in files:
+                if f.endswith(".py"):
+                    try:
+                        with open(os.path.join(root, f), 'r', encoding='utf-8') as file:
+                            ast.parse(file.read())
+                    except: errors += 1
+    sys.exit(0 if errors == 0 else 1)
+if __name__ == "__main__":
+    run_audit()
+    """
+    create_file(f"{project_name}/scripts/qa_scanner.py", qa_content)
+
+    # 5. OPS SYNC (OPTIMIZADO PARA NO BLOQUEARSE)
+    sync_content = f"""
+import os, sys
+PYTHON = r"{PYTHON_PORTABLE}"
+def main():
+    if len(sys.argv) < 2: sys.exit(1)
+    msg = sys.argv[1]
+    # Ejecución en cadena sin inputs
+    os.system(f'"{{PYTHON}}" scripts/qa_scanner.py')
+    os.system("git add .")
+    os.system(f'git commit -m "{{msg}}"')
+    os.system("git push origin main")
+    print("✅ Proceso completado sin interrupciones.")
+if __name__ == "__main__":
+    main()
+    """
+    create_file(f"{project_name}/scripts/ops_sync.py", sync_content)
+
+    # 6. EXTRAS
+    create_file(f"{project_name}/.gitignore", "__pycache__/\n*.db\n*.log")
+
+    print(f"\n✨ PROYECTO '{project_name}' LISTO Y BLINDADO.")
+
+if __name__ == "__main__":
+    main()

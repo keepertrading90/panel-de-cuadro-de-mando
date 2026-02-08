@@ -1,0 +1,6 @@
+Iniciando auditoria de columnas: c:\Users\ismael.rodriguez\MIS HERRAMIENTAS\SIMULADOR FLEJE_PRENSAS\backend\MAESTRO FLEJE_v1.xlsx
+Todas las columnas disponibles:
+['dias laborales 2026', 'Articulo', 'Centro', 'Volumen anual', 'Piezas por minuto', 'Piezas por hora', 'piezas por dia(16h)', 'piezas por dia(24h)', 'Piezas por dia con OEE-24H', 'Piezas por dia con OEE-16H', 'piezas por semana (5dias)-24H', 'piezas por semana (5dias)-16H', '%OEE']
+
+Columnas candidatas para capacidad multiple:
+[]
