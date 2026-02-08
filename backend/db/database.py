@@ -37,6 +37,8 @@ class ScenarioDetail(Base):
     demanda_override = Column(Float, nullable=True)
     new_centro = Column(String, nullable=True)
     horas_turno_override = Column(Integer, nullable=True)
+    setup_time_override = Column(Float, nullable=True)
+    personnel_ratio_override = Column(Float, nullable=True)
 
     scenario = relationship("Scenario", back_populates="details")
 

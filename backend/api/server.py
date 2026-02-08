@@ -77,6 +77,7 @@ class OverrideBase(BaseModel):
     demanda_override: Optional[float] = None
     new_centro: Optional[str] = None
     horas_turno_override: Optional[int] = None
+    personnel_ratio_override: Optional[float] = None
 
 class ScenarioCreate(BaseModel):
     name: str
@@ -146,7 +147,8 @@ def create_scenario(scenario_data: ScenarioCreate, db: Session = Depends(get_db)
             ppm_override=ov.ppm_override,
             demanda_override=ov.demanda_override,
             new_centro=ov.new_centro,
-            horas_turno_override=ov.horas_turno_override
+            horas_turno_override=ov.horas_turno_override,
+            personnel_ratio_override=ov.personnel_ratio_override
         )
         db.add(db_ov)
     
@@ -269,7 +271,8 @@ def update_scenario_full(scenario_id: int, scenario_data: ScenarioCreate, db: Se
             ppm_override=ov.ppm_override,
             demanda_override=ov.demanda_override,
             new_centro=ov.new_centro,
-            horas_turno_override=ov.horas_turno_override
+            horas_turno_override=ov.horas_turno_override,
+            personnel_ratio_override=ov.personnel_ratio_override
         )
         db.add(db_ov)
     

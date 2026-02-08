@@ -162,6 +162,9 @@
                                     data-tooltip="Carga de trabajo vs. Capacidad disponible (Basado en turnos)">
                                     Saturación</th>
                                 <th class="text-right"
+                                    data-tooltip="Coeficiente Persona/Máquina: Cuántos operarios se requieren para este artículo">
+                                    Ratio MOD</th>
+                                <th class="text-right"
                                     data-tooltip="Peso del artículo sobre el total de demanda FILTRADA actual">Impacto %
                                 </th>
                                 <th class="text-center" data-tooltip="Herramientas para simular cambios de parámetros">
@@ -255,9 +258,13 @@
                         <label for="edit-new-centro">Cambiar Centro</label>
                         <select id="edit-new-centro" class="dark-input"></select>
                     </div>
-                    <div class="form-group full-width">
+                    <div class="form-group">
                         <label for="edit-setup">Horas Setup (Total/Año)</label>
                         <input type="number" id="edit-setup" step="any" class="dark-input" placeholder="0.0">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-mod">Ratio Persona/Máquina</label>
+                        <input type="number" id="edit-mod" step="0.1" min="0.1" class="dark-input" placeholder="1.0">
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -299,9 +306,7 @@
     </div>
 
     <!-- HIDDEN INPUT FOR COMPATIBILITY -->
-    <select id="work-shifts" style="display:none;">
-        <option value="16" selected>16</option>
-    </select>
+    <!-- Duplicate removed -->
 
     <script src="ui/app.js"></script>
     <script>

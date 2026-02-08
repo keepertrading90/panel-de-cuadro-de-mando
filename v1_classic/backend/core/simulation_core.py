@@ -6,10 +6,16 @@ from sqlalchemy.orm import Session
 from typing import List
 from backend.db import database
 
-# Usamos la ruta del Maestro Fleje del backend principal del proyecto
+# Usamos la ruta del Maestro Fleje local de esta versión
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROJECT_ROOT = os.path.dirname(os.path.dirname(BASE_DIR))
-EXCEL_PATH = os.path.join(PROJECT_ROOT, "backend", "MAESTRO FLEJE_v1.xlsx")
+EXCEL_PATH = os.path.join(BASE_DIR, "MAESTRO FLEJE_v1.xlsx")
+
+# Fallback al raiz si no existe
+if not os.path.exists(EXCEL_PATH):
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(BASE_DIR))
+    EXCEL_PATH = os.path.join(PROJECT_ROOT, "backend", "MAESTRO FLEJE_v1.xlsx")
+
+print(f"DEBUG:simulation_core: Usando EXCEL_PATH = {EXCEL_PATH}", flush=True)
 
 # Variable global para cachear el DataFrame
 _df_cache = None
@@ -109,13 +115,40 @@ def calculate_saturation(df: pd.DataFrame, dias_laborales_override: int = None, 
     else:
         df['Setup (h)'] = pd.to_numeric(df['Setup (h)'], errors='coerce').fillna(0)
 
+    # --- NUEVA LÓGICA MOD (PERSONAL) ---
+    # 1. Buscar columna en Excel
+    if 'Ratio_MOD' not in df.columns:
+        for col in ['Ratio MOD', 'Ratio Persona Maquina', 'Ratio Persona Articulo', 'MOD']:
+            if col in df.columns:
+                df['Ratio_MOD'] = pd.to_numeric(df[col], errors='coerce').fillna(1.0)
+                break
+        else:
+            df['Ratio_MOD'] = 1.0
+    else:
+        df['Ratio_MOD'] = pd.to_numeric(df['Ratio_MOD'], errors='coerce').fillna(1.0)
+
+    # El Ratio_MOD ya puede venir con pre-overrides de centro o articulo en get_simulation_data
+
     # Cálculos dinámicos
     df['Piezas por hora'] = df['Piezas por minuto'] * 60
     
+    # Manejo de OEE: Si viene como 70 en lugar de 0.70, normalizamos
+    # (Asumimos que si hay valores > 1, es escala 0-100)
+    oee_mask = df['%OEE'] > 1.1
+    df_oee_calc = df['%OEE'].copy()
+    if oee_mask.any():
+        df_oee_calc = df_oee_calc.apply(lambda x: x/100.0 if x > 1.1 else x)
+
     # Calculamos horas totales requeridas (Producción + Setup)
-    # Evitamos división por cero en PPM u OEE
-    df['Horas_Produccion'] = (df['Volumen anual'] / (df['Piezas por hora'] * df['%OEE'])).replace([float('inf'), -float('inf')], 0).fillna(0)
+    # Evitamos división por cero asegurando que PPH y OEE sean > 0
+    denominador = (df['Piezas por hora'] * df_oee_calc)
+    df['Horas_Produccion'] = (df['Volumen anual'] / denominador).replace([float('inf'), -float('inf')], 0).fillna(0)
     df['Horas_Totales'] = df['Horas_Produccion'] + df['Setup (h)']
+    
+    # --- CÁLCULO HORAS HOMBRE (MOD) ---
+    # Las horas de preparación (Setup) siempre tienen ratio 1.0 según requerimiento.
+    # El Ratio_MOD solo afecta a las horas de producción pura.
+    df['Horas_Hombre'] = (df['Horas_Produccion'] * df['Ratio_MOD'].fillna(1.0)) + df['Setup (h)']
     
     # Capacidad Anual en Horas
     df['Capacidad_Anual_H'] = df['dias laborales 2026'] * df['horas_turno']
@@ -137,8 +170,12 @@ def get_simulation_data(db: Session, scenario_id: int = None, dias_laborales: in
     # Aplicar configuraciones por centro si existen
     if center_configs:
         for centro, config in center_configs.items():
-            if isinstance(config, dict) and 'shifts' in config:
-                df.loc[df['Centro'].astype(str) == str(centro), 'horas_turno'] = int(config['shifts'])
+            mask_c = df['Centro'].astype(str) == str(centro)
+            if isinstance(config, dict):
+                if 'shifts' in config:
+                    df.loc[mask_c, 'horas_turno'] = int(config['shifts'])
+                if 'personnel_ratio' in config:
+                    df.loc[mask_c, 'Ratio_MOD'] = float(config['personnel_ratio'])
     
     selected_overrides = []
     if scenario_id:
@@ -165,6 +202,8 @@ def get_simulation_data(db: Session, scenario_id: int = None, dias_laborales: in
         if dem is not None: df.loc[mask, 'Volumen anual'] = dem
         if nc is not None: df.loc[mask, 'Centro'] = nc
         if ht is not None: df.loc[mask, 'horas_turno'] = ht
+        if hasattr(ov, 'personnel_ratio_override') and ov.personnel_ratio_override is not None:
+            df.loc[mask, 'Ratio_MOD'] = ov.personnel_ratio_override
         if getattr(ov, 'setup_time_override', None) is not None: 
             df.loc[mask, 'Setup (h)'] = ov.setup_time_override
 
@@ -175,6 +214,8 @@ def get_simulation_data(db: Session, scenario_id: int = None, dias_laborales: in
     centro_summary = df.groupby('Centro').agg({
         'Saturacion': 'sum',
         'Volumen anual': 'sum',
+        'Horas_Totales': 'sum',
+        'Horas_Hombre': 'sum',
         'Articulo': 'count'
     }).reset_index()
     
@@ -200,6 +241,7 @@ def get_simulation_data(db: Session, scenario_id: int = None, dias_laborales: in
                     "demanda_override": getattr(ov, 'demanda_override', None),
                     "new_centro": getattr(ov, 'new_centro', None),
                     "horas_turno_override": getattr(ov, 'horas_turno_override', None),
+                    "personnel_ratio_override": getattr(ov, 'personnel_ratio_override', None),
                     "setup_time_override": getattr(ov, 'setup_time_override', None)
                 } for ov in selected_overrides
             ] if selected_overrides else []

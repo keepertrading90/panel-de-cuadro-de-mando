@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Ajuste rápido para asegurar carga de CSS */
         #loader-overlay {
             position: fixed;
             top: 0;
@@ -27,17 +26,13 @@
 </head>
 
 <body>
-    <div id="loader-overlay">
-        <span class="loader"></span>
-    </div>
+    <div id="loader-overlay"><span class="loader"></span></div>
 
     <div class="dashboard-container">
-        <!-- SIDEBAR ESTILO PANEL -->
         <aside class="sidebar">
             <div class="logo-container">
                 <img src="ui/rpk_logo.png" alt="RPK Group Logo">
             </div>
-
             <h3>Simulación</h3>
             <nav id="scenarios-nav">
                 <div id="btn-base" class="nav-item active">🏠 Escenario Base</div>
@@ -45,31 +40,30 @@
                 <div id="btn-manage" class="nav-item">📂 Gestionar</div>
                 <div id="btn-compare" class="nav-item">📊 Comparativa</div>
             </nav>
-
-            <h3 style="margin-top: 15rem;">Configuración</h3>
-            <div class="nav-item" style="opacity: 0.5; cursor: default;">⚙️ Ajustes</div>
+            <h3 style="margin-top: 10rem;">Cambios Activos</h3>
+            <div id="overrides-list" class="overrides-sidebar">
+                <p class="empty-state">No hay cambios aplicados</p>
+            </div>
         </aside>
 
-        <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
             <div class="page-header">
                 <div>
                     <h1 id="current-scenario-name">Simulador de Saturación</h1>
                     <p>Optimización de Capacidad y Escenarios de Producción</p>
                 </div>
-                <div id="comparison-controls" style="display: none;">
-                    <span class="secondary-btn" style="border: 1px solid var(--rpk-red); cursor: default;">MODO
-                        COMPARATIVA</span>
-                    <button id="btn-exit-compare" class="secondary-btn" style="margin-left: 10px;">Salir</button>
+                <div id="comparison-controls"
+                    style="display: none; align-items: center; background: rgba(227,6,19,0.1); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--rpk-red);">
+                    <span style="color: var(--rpk-red); font-weight: bold; margin-right: 15px;">MODO COMPARATIVA</span>
+                    <button id="btn-exit-compare" class="secondary-btn">Salir</button>
                 </div>
             </div>
 
-            <!-- FILTROS PRINCIPALES -->
             <section class="card">
                 <div class="filter-bar">
                     <div class="filter-group">
                         <label class="filter-label">Días Laborales</label>
-                        <input type="number" id="work-days" value="238" min="1" max="365">
+                        <input type="number" id="work-days" value="238">
                     </div>
                     <div class="filter-group">
                         <label class="filter-label">Turnos (Global)</label>
@@ -80,17 +74,22 @@
                         </select>
                     </div>
                     <div class="filter-group">
-                        <label class="filter-label">Centros de Trabajo</label>
-                        <select id="work-center" multiple style="min-width: 250px; height: 42px;">
-                            <!-- Dinámico -->
-                        </select>
+                        <label class="filter-label">Filtro Centros</label>
+                        <div id="work-center-dropdown" class="custom-dropdown" style="position:relative;">
+                            <button type="button" class="secondary-btn"
+                                onclick="document.getElementById('work-center-options').classList.toggle('show')">Seleccionar
+                                Centros</button>
+                            <div id="work-center-options" class="dropdown-content"
+                                style="position:absolute; top:100%; left:0; background:#1a1a20; border:1px solid #444; padding:10px; z-index:100; display:none;">
+                                <!-- Dinámico -->
+                            </div>
+                        </div>
                     </div>
                     <button id="btn-apply-filter" class="primary-btn">Aplicar</button>
                     <button id="btn-clear-filter" class="secondary-btn">Limpiar</button>
                 </div>
             </section>
 
-            <!-- DASHBOARD VISUAL -->
             <div class="dashboard-grid">
                 <div class="card">
                     <h3>Saturación por Centro (%)</h3>
@@ -98,21 +97,18 @@
                         <canvas id="saturationChart"></canvas>
                     </div>
                 </div>
-
                 <div class="card">
-                    <h3>Capacidad Global</h3>
+                    <h3>KPIs Principales</h3>
                     <div id="summary-stats" class="summary-stats">
                         <!-- Dinámico -->
                     </div>
                 </div>
             </div>
 
-            <!-- TABLA DE DETALLE -->
-            <section class="card" id="table-section">
+            <section class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                     <h3>Desglose por Artículo</h3>
-                    <input type="text" id="table-search" placeholder="🔍 Buscar artículo o centro..."
-                        style="width: 250px;">
+                    <input type="text" id="table-search" placeholder="🔍 Buscar..." style="width: 250px;">
                 </div>
                 <div class="table-wrapper">
                     <table id="simulation-table">
@@ -124,98 +120,86 @@
                                 <th class="text-right">PPM</th>
                                 <th class="text-right">OEE (%)</th>
                                 <th class="text-right">Saturación</th>
+                                <th class="text-right">Ratio MOD</th>
                                 <th class="text-right">Impacto</th>
                                 <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="table-body">
-                            <!-- Dinámico -->
-                        </tbody>
+                        <tbody id="table-body"></tbody>
                     </table>
                 </div>
             </section>
         </main>
     </div>
 
-    <!-- MODALES ADAPTADOS -->
-    <div id="compare-modal" class="modal">
-        <div class="modal-content">
-            <h3>Comparar Escenarios</h3>
-            <div style="display: flex; gap: 10px; margin-bottom: 2rem;">
-                <select id="compare-a" style="flex: 1;"></select>
-                <div style="display: flex; align-items: center;">VS</div>
-                <select id="compare-b" style="flex: 1;"></select>
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button class="secondary-btn close">Cerrar</button>
-                <button id="run-compare" class="primary-btn">Ejecutar Comparativa</button>
-            </div>
-        </div>
-    </div>
-
+    <!-- MODALES -->
     <div id="edit-modal" class="modal">
-        <div class="modal-content" style="width: 400px;">
-            <h3>Simular Cambio de Parámetros</h3>
-            <div id="display-info" style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-muted);">
-                Artículo: <span id="display-articulo" style="color: white; font-weight: bold;"></span>
-            </div>
-            <form id="edit-form" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1rem;">
-                <input type="hidden" id="edit-articulo">
-                <input type="hidden" id="edit-centro">
-
-                <div class="filter-group">
-                    <label class="filter-label">OEE (%)</label>
-                    <input type="number" id="edit-oee" step="any">
+        <div class="modal-content">
+            <h3>Simular Parámetros</h3>
+            <span id="display-articulo" style="color:var(--rpk-red); font-weight:800;"></span>
+            <form id="edit-form">
+                <input type="hidden" id="edit-articulo"><input type="hidden" id="edit-centro">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
+                    <div><label>OEE (%)</label><input type="number" id="edit-oee" step="any" class="dark-input"></div>
+                    <div><label>PPM</label><input type="number" id="edit-ppm" class="dark-input"></div>
+                    <div style="grid-column: span 2;"><label>Demanda Anual</label><input type="number" id="edit-demanda"
+                            class="dark-input"></div>
+                    <div><label>Setup (h)</label><input type="number" id="edit-setup" class="dark-input"></div>
+                    <div><label>Ratio MOD</label><input type="number" id="edit-mod" step="0.1" class="dark-input"></div>
+                    <div><label>Turnos</label><select id="edit-shifts" class="dark-input">
+                            <option value="">(Global)</option>
+                            <option value="8">8h</option>
+                            <option value="16">16h</option>
+                            <option value="24">24h</option>
+                        </select></div>
+                    <div><label>Nuevo Centro</label><select id="edit-new-centro" class="dark-input"></select></div>
                 </div>
-                <div class="filter-group">
-                    <label class="filter-label">PPM</label>
-                    <input type="number" id="edit-ppm" step="1">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Demanda Anual</label>
-                    <input type="number" id="edit-demanda">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Turnos Específicos (h)</label>
-                    <select id="edit-shifts">
-                        <option value="">Seguir Global</option>
-                        <option value="8">1 Turno (8h)</option>
-                        <option value="16">2 Turnos (16h)</option>
-                        <option value="24">3 Turnos (24h)</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Trasladar a Centro</label>
-                    <select id="edit-new-centro"></select>
-                </div>
-
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 1rem;">
+                <div style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="submit" class="primary-btn">Aplicar</button>
                     <button type="button" id="cancel-edit" class="secondary-btn">Cancelar</button>
-                    <button type="submit" class="primary-btn">Aplicar Cambio</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <div id="save-modal" class="modal">
+        <div class="modal-content">
+            <h3>Guardar Escenario</h3>
+            <input type="text" id="new-scenario-name" placeholder="Nombre..." class="dark-input"
+                style="margin: 20px 0;">
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button id="btn-save-new-confirm" class="primary-btn">Guardar</button>
+                <button onclick="document.getElementById('save-modal').style.display='none'"
+                    class="secondary-btn">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="manage-modal" class="modal">
-        <div class="modal-content" style="width: 600px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <h3>Gestionar Escenarios</h3>
-                <span class="close-manage" style="cursor: pointer; font-size: 1.5rem;">&times;</span>
+        <div class="modal-content">
+            <h3>Gestionar Escenarios</h3>
+            <div id="manage-list-container" style="margin-top:20px;"></div>
+            <button class="close-manage secondary-btn" style="margin-top:20px;">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="compare-modal" class="modal">
+        <div class="modal-content">
+            <h3>Comparativa</h3>
+            <div style="display:flex; gap:15px; align-items:center; margin:20px 0;">
+                <select id="compare-a" class="dark-input"></select>
+                <span>VS</span>
+                <select id="compare-b" class="dark-input"></select>
             </div>
-            <div id="manage-list-container"
-                style="display: flex; flex-direction: column; gap: 10px; max-height: 400px; overflow-y: auto;">
-                <!-- Dinámico -->
-            </div>
-            <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
-                <button class="secondary-btn close-manage">Cerrar</button>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button id="run-compare" class="primary-btn">Comparar</button>
+                <button class="close secondary-btn">Cerrar</button>
             </div>
         </div>
     </div>
 
     <script src="ui/app.js"></script>
     <script>
-        // Quitar loader cuando todo cargue
         window.addEventListener('load', () => {
             const loader = document.getElementById('loader-overlay');
             loader.style.opacity = '0';

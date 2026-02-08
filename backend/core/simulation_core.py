@@ -93,15 +93,40 @@ def calculate_saturation(df: pd.DataFrame, dias_laborales_override: int = None, 
     else:
         df['dias laborales 2026'] = pd.to_numeric(df['dias laborales 2026'], errors='coerce').fillna(238)
 
+    # --- NUEVA LÓGICA MOD (PERSONAL) ---
+    if 'Ratio_MOD' not in df.columns:
+        for col in ['Ratio MOD', 'Ratio Persona Maquina', 'Ratio Persona Articulo', 'MOD']:
+            if col in df.columns:
+                df['Ratio_MOD'] = pd.to_numeric(df[col], errors='coerce').fillna(1.0)
+                break
+        else:
+            df['Ratio_MOD'] = 1.0
+    else:
+        df['Ratio_MOD'] = pd.to_numeric(df['Ratio_MOD'], errors='coerce').fillna(1.0)
+
     # Cálculos dinámicos
     df['Piezas por hora'] = df['Piezas por minuto'] * 60
     
-    # Capacidad diaria dinámica según la columna de turnos (que contiene overrides o el valor global)
-    df['Capacidad_Dia_H'] = df['Piezas por hora'] * df['horas_turno'] * df['%OEE']
-    df['Capacidad_Anual_H'] = df['Capacidad_Dia_H'] * df['dias laborales 2026']
+    # Manejo de OEE
+    oee_mask = df['%OEE'] > 1.1
+    df_oee_calc = df['%OEE'].copy()
+    if oee_mask.any():
+        df_oee_calc = df_oee_calc.apply(lambda x: x/100.0 if x > 1.1 else x)
+
+    # Horas Totales
+    df['Horas_Produccion'] = (df['Volumen anual'] / (df['Piezas por hora'] * df_oee_calc)).replace([float('inf'), -float('inf')], 0).fillna(0)
+    df['Horas_Totales'] = df['Horas_Produccion'] + df.get('Setup (h)', 0) # Por si no existe
+    
+    # --- CÁLCULO HORAS HOMBRE ---
+    # Las horas de preparación siempre tienen ratio 1.0 por definición.
+    # El Ratio_MOD se aplica exclusivamente a las horas de producción.
+    df['Horas_Hombre'] = (df['Horas_Produccion'] * df['Ratio_MOD'].fillna(1.0)) + df.get('Setup (h)', 0)
+    
+    # Capacidad Anual en Horas
+    df['Capacidad_Anual_H'] = df['dias laborales 2026'] * df['horas_turno']
     
     # % Saturación
-    df['Saturacion'] = (df['Volumen anual'] / df['Capacidad_Anual_H']).replace([float('inf'), -float('inf')], 0).fillna(0)
+    df['Saturacion'] = (df['Horas_Totales'] / df['Capacidad_Anual_H']).replace([float('inf'), -float('inf')], 0).fillna(0)
     
     return df
 
@@ -145,6 +170,11 @@ def get_simulation_data(db: Session, scenario_id: int = None, dias_laborales: in
         if dem is not None: df.loc[mask, 'Volumen anual'] = dem
         if nc is not None: df.loc[mask, 'Centro'] = nc
         if ht is not None: df.loc[mask, 'horas_turno'] = ht
+        
+        # Override del Ratio MOD (Personnel Ratio)
+        mod_ov = getattr(ov, 'personnel_ratio_override', None)
+        if mod_ov is not None:
+            df.loc[mask, 'Ratio_MOD'] = mod_ov
 
     d_lab = int(dias_laborales) if dias_laborales is not None else None
     df = calculate_saturation(df, d_lab, h_turno)
@@ -168,6 +198,18 @@ def get_simulation_data(db: Session, scenario_id: int = None, dias_laborales: in
         "meta": {
             "dias_laborales": d_lab if d_lab is not None else 238,
             "horas_turno_global": h_turno,
-            "center_configs": center_configs or {}
+            "center_configs": center_configs or {},
+            "applied_overrides": [
+                {
+                    "articulo": getattr(ov, 'articulo', None) or (ov.articulo if hasattr(ov, 'articulo') else None),
+                    "centro": getattr(ov, 'centro', None) or (ov.centro if hasattr(ov, 'centro') else None),
+                    "oee_override": getattr(ov, 'oee_override', None),
+                    "ppm_override": getattr(ov, 'ppm_override', None),
+                    "demanda_override": getattr(ov, 'demanda_override', None),
+                    "new_centro": getattr(ov, 'new_centro', None),
+                    "horas_turno_override": getattr(ov, 'horas_turno_override', None),
+                    "personnel_ratio_override": getattr(ov, 'personnel_ratio_override', None)
+                } for ov in selected_overrides
+            ] if selected_overrides else []
         }
     }

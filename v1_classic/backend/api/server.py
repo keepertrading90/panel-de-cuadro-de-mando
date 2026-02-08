@@ -33,9 +33,12 @@ except Exception as e:
 print("DEBUG: Creando instancia FastAPI...", flush=True)
 app = FastAPI(title="RPK Simulator API")
 
-# Determinar rutas relativas para el frontend
+# Determinar rutas relativas para el frontend classic
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "..", "frontend", "ui")
+# Si el server está en v1_classic/backend/api/, el frontend está en v1_classic/frontend/ui/
+if "v1_classic" in BASE_DIR and not "v1_classic" in FRONTEND_DIR:
+    FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "v1_classic", "frontend", "ui")
 print(f"DEBUG: Frontend dir: {FRONTEND_DIR}", flush=True)
 
 # CORS para el frontend
@@ -68,6 +71,7 @@ class OverrideBase(BaseModel):
     new_centro: Optional[str] = None
     horas_turno_override: Optional[int] = None
     setup_time_override: Optional[float] = None
+    personnel_ratio_override: Optional[float] = None
 
 class ScenarioCreate(BaseModel):
     name: str
@@ -137,7 +141,8 @@ def create_scenario(scenario_data: ScenarioCreate, db: Session = Depends(get_db)
             ppm_override=ov.ppm_override,
             demanda_override=ov.demanda_override,
             new_centro=ov.new_centro,
-            horas_turno_override=ov.horas_turno_override
+            horas_turno_override=ov.horas_turno_override,
+            personnel_ratio_override=ov.personnel_ratio_override
         )
         db.add(db_ov)
     
@@ -266,7 +271,8 @@ def update_scenario_full(scenario_id: int, scenario_data: ScenarioCreate, db: Se
             ppm_override=ov.ppm_override,
             demanda_override=ov.demanda_override,
             new_centro=ov.new_centro,
-            horas_turno_override=ov.horas_turno_override
+            horas_turno_override=ov.horas_turno_override,
+            personnel_ratio_override=ov.personnel_ratio_override
         )
         db.add(db_ov)
     

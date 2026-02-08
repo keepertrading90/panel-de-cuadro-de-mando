@@ -38,6 +38,7 @@ class ScenarioDetail(Base):
     new_centro = Column(String, nullable=True)
     horas_turno_override = Column(Integer, nullable=True)
     setup_time_override = Column(Float, nullable=True) # Horas de preparación anuales
+    personnel_ratio_override = Column(Float, nullable=True)
 
     scenario = relationship("Scenario", back_populates="details")
 

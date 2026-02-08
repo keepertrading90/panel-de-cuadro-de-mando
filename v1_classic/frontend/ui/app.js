@@ -98,6 +98,7 @@ async function loadSimulation(scenarioId) {
                     ov.original_ppm = baseItem['Piezas por minuto'];
                     ov.original_demanda = baseItem['Volumen anual'];
                     ov.original_shifts = baseItem['horas_turno'] || 16;
+                    ov.original_mod = baseItem['Ratio_MOD'] || 1.0;
                 }
             });
         }
@@ -230,8 +231,8 @@ function renderSummary(summary, isFiltered) {
             <div class="stat-label">Saturación Media ${isFiltered ? '(Sectores)' : ''}</div>
         </div>
         <div class="stat-item">
-            <div class="stat-val">${summary.length}</div>
-            <div class="stat-label">Centros ${isFiltered ? 'Filtrados' : 'Totales'}</div>
+            <div class="stat-val" style="color: #4facfe;">${(summary.reduce((acc, c) => acc + (c.Horas_Hombre || 0), 0) / (currentData.meta.dias_laborales * 8)).toFixed(1)}</div>
+            <div class="stat-label">Operarios Necesarios (FTE)</div>
         </div>
         <div class="stat-item">
             <div class="stat-val">${totalDemanda}</div>
@@ -273,6 +274,12 @@ function renderTable(detail) {
                     <span class="saturation-pill ${satClass}">${sat}%</span>
                     <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
                         ${(d.Horas_Totales || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}h
+                    </div>
+                </td>
+                <td class="text-right">
+                    <span class="mod-value">${(d.Ratio_MOD || 1).toFixed(1)}</span>
+                    <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
+                        ${(d.Horas_Hombre || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}h/h
                     </div>
                 </td>
                 <td class="text-right">
@@ -467,6 +474,14 @@ function populateWorkCenters() {
                     <button class="shift-btn ${activeShift == 16 ? 'active text-white' : ''}" onclick="setCenterShift('${c}', 16, event)">2T</button>
                     <button class="shift-btn ${activeShift == 24 ? 'active text-white' : ''}" onclick="setCenterShift('${c}', 24, event)">3T</button>
                 </div>
+                <div class="wc-ratio-part" style="margin-top: 5px; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.65rem; color: var(--text-muted)">MOD:</span>
+                    <input type="range" min="0.1" max="3.0" step="0.1" value="${config.personnel_ratio || 1.0}" 
+                        style="width: 60px; height: 4px;" 
+                        oninput="this.nextElementSibling.innerText = parseFloat(this.value).toFixed(1)"
+                        onchange="setCenterRatio('${c}', this.value, event)">
+                    <span style="font-size: 0.7rem; min-width: 20px;">${(config.personnel_ratio || 1.0).toFixed(1)}</span>
+                </div>
             </div>
         `;
     });
@@ -491,6 +506,13 @@ async function setCenterShift(centro, shifts, event) {
     //     df.loc[df['Centro'].astype(str) == str(centro), 'horas_turno'] = int(config['shifts'])
 
     populateWorkCenters(); // Update buttons state
+    await updatePreviewSimulation();
+}
+
+async function setCenterRatio(centro, ratio, event) {
+    if (event) event.stopPropagation();
+    if (!centerConfigs[String(centro)]) centerConfigs[String(centro)] = {};
+    centerConfigs[String(centro)].personnel_ratio = parseFloat(ratio);
     await updatePreviewSimulation();
 }
 
@@ -621,6 +643,7 @@ function setupEventListeners() {
                 demanda_override: demanda,
                 new_centro: new_centro,
                 horas_turno_override: shifts ? parseInt(shifts) : null,
+                personnel_ratio_override: parseFloat(document.getElementById('edit-mod').value) || null,
                 setup_time_override: parseFloat(document.getElementById('edit-setup').value) || 0
             };
 
@@ -633,6 +656,7 @@ function setupEventListeners() {
             override.original_demanda = b ? b['Volumen anual'] : 0;
             override.original_shifts = b ? (b.horas_turno || 16) : 16;
             override.original_setup = b ? (b['Setup (h)'] || 0) : 0;
+            override.original_mod = b ? (b.Ratio_MOD || 1.0) : 1.0;
 
             if (idx >= 0) localOverrides[idx] = override;
             else localOverrides.push(override);
@@ -782,6 +806,7 @@ function openEditModal(articulo, centro) {
     const existingOverride = localOverrides.find(o => o.articulo == articulo && o.centro == centro);
     document.getElementById('edit-shifts').value = (existingOverride && existingOverride.horas_turno_override) ? existingOverride.horas_turno_override : "";
     document.getElementById('edit-setup').value = (existingOverride && existingOverride.setup_time_override !== undefined) ? existingOverride.setup_time_override : (d['Setup (h)'] || 0);
+    document.getElementById('edit-mod').value = (existingOverride && existingOverride.personnel_ratio_override) ? existingOverride.personnel_ratio_override : (d.Ratio_MOD || 1.0);
 
     const centers = [...new Set(currentData.detail.map(item => item.Centro))].sort();
     document.getElementById('edit-new-centro').innerHTML = centers.map(c => `<option value="${c}" ${c == centro ? 'selected' : ''}>${c}</option>`).join('');
@@ -822,8 +847,15 @@ async function runCompare() {
     const scA = document.getElementById('compare-a').value;
     const scB = document.getElementById('compare-b').value;
     try {
+        setLoading(true);
         const resA = await fetch(`${API_BASE}/simulate/${scA === 'base' ? 'base' : scA}`);
         const resB = await fetch(`${API_BASE}/simulate/${scB === 'base' ? 'base' : scB}`);
+
+        if (!resA.ok || !resB.ok) {
+            const err = !resA.ok ? await resA.json() : await resB.json();
+            throw new Error(err.detail || "Error al cargar la simulación de comparación.");
+        }
+
         comparisonData = {
             nameA: scA === 'base' ? 'Base' : scenarios.find(s => s.id == scA).name,
             nameB: scB === 'base' ? 'Base' : scenarios.find(s => s.id == scB).name,
@@ -833,7 +865,12 @@ async function runCompare() {
         isComparisonMode = true;
         document.getElementById('compare-modal').style.display = 'none';
         enterComparisonMode();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+        alert("No se pudo iniciar la comparativa: " + e.message);
+    } finally {
+        setLoading(false);
+    }
 }
 
 function enterComparisonMode() {
@@ -914,50 +951,55 @@ function enterComparisonMode() {
 }
 
 function renderExecutiveInsights() {
-    const summaryA = comparisonData.dataA.summary;
-    const summaryB = comparisonData.dataB.summary;
-    const detailB = comparisonData.dataB.detail;
+    if (!comparisonData || !comparisonData.dataA || !comparisonData.dataB) {
+        console.warn("Faltan datos para insights ejecutivos.");
+        return;
+    }
+
+    const summaryA = comparisonData.dataA.summary || [];
+    const summaryB = comparisonData.dataB.summary || [];
+    const detailA = comparisonData.dataA.detail || [];
+    const detailB = comparisonData.dataB.detail || [];
 
     // 1. Calculate Net Impact (Capacity)
-    // We assume hours available in Base are constant for comparison or use the sum of Saturation
-    const avgA = summaryA.reduce((acc, s) => acc + s.Saturacion, 0) / summaryA.length;
-    const avgB = summaryB.reduce((acc, s) => acc + s.Saturacion, 0) / summaryB.length;
+    const avgA = summaryA.length > 0 ? (summaryA.reduce((acc, s) => acc + (s.Saturacion || 0), 0) / summaryA.length) : 0;
+    const avgB = summaryB.length > 0 ? (summaryB.reduce((acc, s) => acc + (s.Saturacion || 0), 0) / summaryB.length) : 0;
     const deltaAvg = (avgB - avgA) * 100;
 
-    // Total Hours Delta (Estimate)
-    // Formula updated: use Horas_Totales which now includes Production + Setup
-    const totalHoursA = comparisonData.dataA.detail.reduce((acc, d) => acc + (d['Horas_Totales'] || 0), 0);
-    const totalHoursB = comparisonData.dataB.detail.reduce((acc, d) => acc + (d['Horas_Totales'] || 0), 0);
+    // Total Hours Delta
+    const totalHoursA = detailA.reduce((acc, d) => acc + (d['Horas_Totales'] || 0), 0);
+    const totalHoursB = detailB.reduce((acc, d) => acc + (d['Horas_Totales'] || 0), 0);
     const hourDelta = totalHoursB - totalHoursA;
 
     const impactVal = document.getElementById('val-impact');
     if (impactVal) {
         impactVal.innerText = `${Math.abs(deltaAvg).toFixed(1)}%`;
         const badge = document.getElementById('delta-impact-badge');
-        if (deltaAvg > 0) {
+        if (deltaAvg > 0.01) {
             impactVal.style.color = 'var(--rpk-red)';
-            badge.innerHTML = `<span class="insight-delta delta-neg">▲ +${Math.abs(hourDelta).toFixed(0)}h requerimiento</span>`;
-        } else if (deltaAvg < 0) {
+            badge.innerHTML = `<span class="insight-delta delta-neg">▲ +${Math.abs(hourDelta).toFixed(0)}h req. extra</span>`;
+        } else if (deltaAvg < -0.01) {
             impactVal.style.color = '#4cd137';
             badge.innerHTML = `<span class="insight-delta delta-pos">▼ -${Math.abs(hourDelta).toFixed(0)}h optimización</span>`;
         } else {
-            badge.innerHTML = `<span class="insight-delta">● Balanceado</span>`;
+            impactVal.style.color = '#fff';
+            badge.innerHTML = `<span class="insight-delta">● Sin variación neta</span>`;
         }
     }
 
     // 2. OEE Evolution
-    const oeeA = comparisonData.dataA.detail.reduce((acc, d) => acc + (d['%OEE'] || 0), 0) / comparisonData.dataA.detail.length;
-    const oeeB = comparisonData.dataB.detail.reduce((acc, d) => acc + (d['%OEE'] || 0), 0) / comparisonData.dataB.detail.length;
+    const oeeA = detailA.length > 0 ? (detailA.reduce((acc, d) => acc + (d['%OEE'] || 0), 0) / detailA.length) : 0;
+    const oeeB = detailB.length > 0 ? (detailB.reduce((acc, d) => acc + (d['%OEE'] || 0), 0) / detailB.length) : 0;
     const deltaOEE = (oeeB - oeeA) * 100;
 
     const oeeVal = document.getElementById('val-oee');
     if (oeeVal) {
         oeeVal.innerText = `${(oeeB * 100).toFixed(1)}%`;
         const badge = document.getElementById('delta-oee-badge');
-        if (deltaOEE > 0.01) {
-            badge.innerHTML = `<span class="insight-delta delta-pos">▲ +${deltaOEE.toFixed(1)}% vs Base</span>`;
-        } else if (deltaOEE < -0.01) {
-            badge.innerHTML = `<span class="insight-delta delta-neg">▼ ${deltaOEE.toFixed(1)}% vs Base</span>`;
+        if (deltaOEE > 0.1) {
+            badge.innerHTML = `<span class="insight-delta delta-pos">▲ +${deltaOEE.toFixed(1)}% vs ${comparisonData.nameA}</span>`;
+        } else if (deltaOEE < -0.1) {
+            badge.innerHTML = `<span class="insight-delta delta-neg">▼ ${deltaOEE.toFixed(1)}% vs ${comparisonData.nameA}</span>`;
         } else {
             badge.innerHTML = `<span class="insight-delta">● Estable</span>`;
         }
@@ -1047,16 +1089,19 @@ function renderComparisonDashboard() {
     const ctx = document.getElementById('saturationChart').getContext('2d');
     if (chartInstance) chartInstance.destroy();
 
-    const centersA = comparisonData.dataA.summary.map(s => String(s.Centro));
-    const centersB = comparisonData.dataB.summary.map(s => String(s.Centro));
+    const summaryA = (comparisonData.dataA.summary || []);
+    const summaryB = (comparisonData.dataB.summary || []);
+
+    const centersA = summaryA.map(s => String(s.Centro));
+    const centersB = summaryB.map(s => String(s.Centro));
     const labels = [...new Set([...centersA, ...centersB])].sort();
 
     const dataA_Abs = labels.map(label => {
-        const item = comparisonData.dataA.summary.find(s => String(s.Centro) === label);
+        const item = summaryA.find(s => String(s.Centro) === label);
         return item ? (item.Saturacion * 100).toFixed(1) : "0.0";
     });
     const dataB_Abs = labels.map(label => {
-        const item = comparisonData.dataB.summary.find(s => String(s.Centro) === label);
+        const item = summaryB.find(s => String(s.Centro) === label);
         return item ? (item.Saturacion * 100).toFixed(1) : "0.0";
     });
 
@@ -1167,7 +1212,7 @@ function renderComparisonTable() {
 
     body.innerHTML = filtered.slice(0, 100).map(dB => {
         // Find matching item in A by Article AND centro_original
-        const dA = detailA.find(item => item.Articulo == dB.Articulo && item.centro_original == dB.centro_original) || {};
+        const dA = detailA.find(item => item.Articulo == dB.Articulo && (item.centro_original == dB.centro_original || item.Centro == dB.centro_original)) || {};
 
         const sat = (dB.Saturacion * 100).toFixed(1);
         const satClass = sat > 85 ? 'pill-high' : (sat > 70 ? 'pill-mid' : 'pill-low');
