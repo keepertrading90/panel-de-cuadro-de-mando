@@ -914,7 +914,7 @@ function enterComparisonMode() {
             <div class="bento-item bento-small" id="tile-impact">
                 <div class="insight-header">Impacto Neto</div>
                 <div class="insight-value" id="val-impact">--</div>
-                <div class="insight-label">Horas disponibles vs ${comparisonData.nameA}</div>
+                <div class="insight-label">Capacidad vs ${comparisonData.nameA}</div>
                 <div id="delta-impact-badge"></div>
             </div>
 
@@ -924,6 +924,14 @@ function enterComparisonMode() {
                 <div class="insight-value" id="val-oee">--</div>
                 <div class="insight-label">Promedio ponderado</div>
                 <div id="delta-oee-badge"></div>
+            </div>
+
+            <!-- Tile: Headcount (FTE) -->
+            <div class="bento-item bento-small" id="tile-headcount">
+                <div class="insight-header">Personal (FTE)</div>
+                <div class="insight-value" id="val-headcount">--</div>
+                <div class="insight-label">Basado en Ratio MOD</div>
+                <div id="delta-headcount-badge"></div>
             </div>
 
             <!-- Tile: Top Changes -->
@@ -1002,6 +1010,32 @@ function renderExecutiveInsights() {
             badge.innerHTML = `<span class="insight-delta delta-neg">▼ ${deltaOEE.toFixed(1)}% vs ${comparisonData.nameA}</span>`;
         } else {
             badge.innerHTML = `<span class="insight-delta">● Estable</span>`;
+        }
+    }
+
+    // 3. Headcount (FTE)
+    const daysA = comparisonData.dataA.meta.dias_laborales || 238;
+    const daysB = comparisonData.dataB.meta.dias_laborales || 238;
+
+    // Sum Hombres/Horas
+    const sumHHA = detailA.reduce((acc, d) => acc + (d.Horas_Hombre || 0), 0);
+    const sumHHB = detailB.reduce((acc, d) => acc + (d.Horas_Hombre || 0), 0);
+
+    // FTE theoretical (assuming 8h shift)
+    const fteA = sumHHA / (daysA * 8);
+    const fteB = sumHHB / (daysB * 8);
+    const deltaFTE = fteB - fteA;
+
+    const fteVal = document.getElementById('val-headcount');
+    if (fteVal) {
+        fteVal.innerText = fteB.toFixed(1);
+        const fteBadge = document.getElementById('delta-headcount-badge');
+        if (deltaFTE > 0.1) {
+            fteBadge.innerHTML = `<span class="insight-delta delta-neg">▲ +${deltaFTE.toFixed(1)} FTE vs ${comparisonData.nameA}</span>`;
+        } else if (deltaFTE < -0.1) {
+            fteBadge.innerHTML = `<span class="insight-delta delta-pos">▼ ${deltaFTE.toFixed(1)} FTE vs ${comparisonData.nameA}</span>`;
+        } else {
+            fteBadge.innerHTML = `<span class="insight-delta">● Sin variación</span>`;
         }
     }
 
@@ -1244,10 +1278,8 @@ function renderComparisonTable() {
                         ${(dB.Horas_Totales || 0).toFixed(1)}h
                     </div>
                 </td>
-                <td class="text-right ${hasDiffSetup ? 'val-changed font-bold' : ''}">
-                    ${(dB['Setup (h)'] || 0).toFixed(1)}h
-                    ${hasDiffSetup ? `<div style="font-size: 0.7rem; opacity: 0.6;">(vs ${(dA['Setup (h)'] || 0).toFixed(1)}h)</div>` : ''}
-                </td>
+                <td class="text-right">${(dB.Ratio_MOD || 1.0).toFixed(2)}</td>
+                <td class="text-right">${((dB.Impacto || 0) * 100).toFixed(1)}%</td>
                 <td class="text-center">
                     <button class="secondary-btn btn-simular" 
                         style="padding: 0.3rem 0.6rem; font-size: 0.7rem;"
