@@ -6,3 +6,8 @@ __pycache__/
 .env
 .vscode/
 node_modules/
+_SISTEMA/
+.agent/
+*.pickle
+*.csv
+*.xlsx
