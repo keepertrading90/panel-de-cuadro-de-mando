@@ -8,12 +8,15 @@ from backend.db import database
 
 # Usamos la ruta del Maestro Fleje local de esta versión
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-EXCEL_PATH = os.path.join(BASE_DIR, "MAESTRO FLEJE_v1.xlsx")
+# Priorizamos el Maestro del directorio raíz para asegurar consistencia
+PROJECT_ROOT = os.path.dirname(os.path.dirname(BASE_DIR))
+ROOT_EXCEL_PATH = os.path.join(PROJECT_ROOT, "backend", "MAESTRO FLEJE_v1.xlsx")
 
-# Fallback al raiz si no existe
-if not os.path.exists(EXCEL_PATH):
-    PROJECT_ROOT = os.path.dirname(os.path.dirname(BASE_DIR))
-    EXCEL_PATH = os.path.join(PROJECT_ROOT, "backend", "MAESTRO FLEJE_v1.xlsx")
+if os.path.exists(ROOT_EXCEL_PATH):
+    EXCEL_PATH = ROOT_EXCEL_PATH
+else:
+    # Fallback al local de esta versión
+    EXCEL_PATH = os.path.join(BASE_DIR, "MAESTRO FLEJE_v1.xlsx")
 
 print(f"DEBUG:simulation_core: Usando EXCEL_PATH = {EXCEL_PATH}", flush=True)
 
@@ -155,6 +158,13 @@ def calculate_saturation(df: pd.DataFrame, dias_laborales_override: int = None, 
     
     # % Saturación
     df['Saturacion'] = (df['Horas_Totales'] / df['Capacidad_Anual_H']).replace([float('inf'), -float('inf')], 0).fillna(0)
+
+    # --- CÁLCULO IMPACTO (Peso del artículo sobre el total) ---
+    total_horas_global = df['Horas_Totales'].sum()
+    if total_horas_global > 0:
+        df['Impacto'] = df['Horas_Totales'] / total_horas_global
+    else:
+        df['Impacto'] = 0.0
     
     return df
 
