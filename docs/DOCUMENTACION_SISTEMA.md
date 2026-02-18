@@ -20,36 +20,41 @@ El sistema está estructurado modularmente para garantizar escalabilidad y mante
     *   `backend/api/server.py`: Orquestador FastAPI. Expone endpoints REST para simular en tiempo real, guardar escenarios y servir los archivos estáticos del frontend.
 
 4.  **Interfaz de Usuario (Frontend)**:
-    *   `frontend/ui/`: Contiene `index.html`, `styles.css` y `app.js`.
-    *   La UI es reactiva y se comunica con la API para reflejar cambios instantáneamente.
+    *   `frontend/ui/`: Contiene `index.html`, `styles.css` y `app.js`. La UI es reactiva y se comunica con la API para reflejar cambios instantáneamente.
 
-5.  **Automatización y QA**:
-    *   `scripts/`: Utilidades para auditoría de código (`qa_scanner.py`) y sincronización con GitHub (`ops_sync.py`).
+---
+
+## 🏠 V1 LOCAL (CLASSIC VERSION)
+
+El proyecto incluye una versión denominada **v1_local** o **Classic**, ubicada en la carpeta `/v1_classic/`. Esta versión está optimizada para el uso 100% individual y local.
+
+### Diferencias Clave V1 vs V3:
+- **Diseño de Interfaz**: Utiliza un layout de **3 columnas** (Cambios Activos | Dashboard | Histórico) para una visualización completa en una sola pantalla.
+- **Puerto de Ejecución**: Configurado por defecto en el puerto **8000**.
+- **Acceso**: Restringido a `127.0.0.1` para garantizar la privacidad de las simulaciones locales.
+- **Visualización de Histórico**: Panel derecho dedicado para ver las versiones guardadas del escenario actual de forma inmediata.
 
 ---
 
 ## 🎮 MANUAL DE FUNCIONALIDADES (BOTONES)
 
-### Sidebar (Navegación Principal)
+### Sidebar / Top Nav (Navegación)
 - **🏠 Escenario Base**: Resetea todas las modificaciones locales y carga la situación actual del Excel Maestro.
-- **➕ Crear Escenario**: Captura el estado actual de la simulación (cambios aplicados) y solicita un nombre para guardarlo permanentemente en la base de datos.
-- **📂 Gestionar**: Abre un panel para visualizar escenarios guardados, permitiendo cargarlos o eliminarlos de forma segura.
-- **📊 Comparativa**: Permite seleccionar dos escenarios distintos para analizar sus diferencias en un dashboard dual (Gráfico + Tabla).
+- **➕ Crear Escenario**: Captura el estado actual de la simulación y solicita un nombre para guardarlo.
+- **📂 Gestionar**: Panel para visualizar, cargar o eliminar escenarios guardados en la BD local.
+- **📊 Comparativa**: Selecciona dos escenarios para enfrentar sus KPIs en un dashboard dual.
 
-### Barra de Filtros y Parámetros
-- **Días Laborales**: Input numérico para ajustar el calendario laboral anual (por defecto 238). Impacta directamente en la capacidad instalada.
-- **Turnos (Global)**: Selector de turnos estándar (1T, 2T, 3T) aplicable a toda la planta.
-- **Seleccionar Centros**: Desplegable con checkboxes para filtrar la visualización a máquinas específicas. Incluye botones rápidos (1T, 2T, 3T) por cada centro para ajustes granulares de capacidad.
-- **Botón Aplicar**: Refresca la vista con los filtros de centros seleccionados.
-- **Botón Limpiar**: Resetea los filtros de visualización al estado "Todos".
+### Filtros y Parámetros
+- **Días Laborales**: Ajusta el calendario anual (ej: 238 días).
+- **Turnos (Global/Granular)**: Permite configurar turnos generales para toda la planta o específicos por centro de trabajo (1T, 2T, 3T).
+- **Seleccionar Centros**: Filtrado por máquinas para enfocar el análisis en secciones críticas.
 
-### Desglose de Artículos (Tabla)
-- **🔍 Buscar (Input)**: Filtrado en tiempo real por Referencia de Artículo o Centro de Trabajo.
-- **Botón Ajustar**: El botón más potente. Abre un modal para realizar "What-if analysis" sobre un artículo específico:
-  - Cambiar de máquina (Nuevo Centro).
-  - Modificar OEE o PPM estimados.
-  - Ajustar demanda para simular picos de producción.
-  - Configurar ratio de personal (MOD).
+### Desglose y "What-if Analysis"
+- **Botón Ajustar (Tabla)**: Abre el modal de simulación de nivel de artículo:
+  - **Nuevo Centro**: Simular el traslado de una referencia a otra máquina.
+  - **OEE / PPM**: Evaluar el impacto de mejoras de eficiencia o velocidad.
+  - **Ratio MOD**: Ajustar la dotación de personal necesaria.
+  - **Setup (h)**: Modificar el tiempo de preparación anual.
 
 ---
 
@@ -58,10 +63,8 @@ El sistema está estructurado modularmente para garantizar escalabilidad y mante
 ### 1. Cálculo de Tiempos
 - **Horas de Producción**: 
   $$Horas_{Producción} = \frac{Volumen \, Anual}{Piezas/Hora \times \%OEE}$$
-- **Horas Totales**: 
-  $$Horas_{Totales} = Horas_{Producción} + Setup \, (h)$$
 - **Horas Hombre (MOD)**: 
-  $$Horas_{Hombre} = (Horas_{Producción} \times Ratio_{MOD}) + Setup \, (h)$$
+  $$Horas_{Hombre} = (Horas_{Producción} \times Ratio_{MOD}) + Setup $$
 
 ### 2. Cálculo de Saturación
 - **Capacidad Anual (H)**: 
@@ -73,8 +76,8 @@ El sistema está estructurado modularmente para garantizar escalabilidad y mante
 
 ## 🚀 PROTOCOLO DE DESARROLLO (SOP)
 
-1. **Validar**: `"Y:\Supply Chain\PLAN PRODUCCION\PANEL\_SISTEMA\runtime_python\python.exe" scripts/qa_scanner.py`
-2. **Sincronizar**: `"Y:\Supply Chain\PLAN PRODUCCION\PANEL\_SISTEMA\runtime_python\python.exe" scripts/ops_sync.py "Mensaje"`
+1. **Validar**: `scripts/qa_scanner.py`
+2. **Sincronizar**: `scripts/ops_sync.py "Mensaje"`
 
 ---
 *Documento certificado por Antigravity APS - Sistema RPK v7.0*
