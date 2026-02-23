@@ -4,6 +4,7 @@ import time
 import functools
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime, timedelta
 from backend.db import database
 
 # Usamos la ruta del Maestro Fleje en el directorio raíz del backend
@@ -26,7 +27,7 @@ def time_it(func):
         return result
     return wrapper
 
-def get_actual_dataframe():
+def get_actual_dataframe(dias_laborales: int = None):
     """Carga los pedidos reales de Nexus v2 y los cruza con el maestro de cadencias."""
     try:
         # Ruta al Data Lake de Nexus v2 (Proyectos hermanos en MIS HERRAMIENTAS)
@@ -53,6 +54,20 @@ def get_actual_dataframe():
         df_orders = pd.read_parquet(latest_parquet)
         source_name = files[0] # Guardamos el nombre para el UI
         
+        # --- FILTRADO POR HORIZONTE TEMPORAL (Días Laborales) ---
+        if dias_laborales is not None and 'F.ENT.PREV' in df_orders.columns:
+            try:
+                # Convertir a datetime (el formato suele ser DD/MM/YYYY en los excels de Nexus)
+                df_orders['F.ENT.PREV'] = pd.to_datetime(df_orders['F.ENT.PREV'], dayfirst=True, errors='coerce')
+                # El horizonte es HOY + N días naturales
+                horizonte = datetime.now() + timedelta(days=dias_laborales)
+                # Filtrar solo pedidos pendientes con fecha de entrega <= horizonte
+                df_orders = df_orders[df_orders['F.ENT.PREV'] <= horizonte].copy()
+                print(f"DEBUG: Filtrando pedidos hasta {horizonte.strftime('%Y-%m-%d')} ({dias_laborales} dias)", flush=True)
+                source_name += f" (Filtrado: {dias_laborales}d)"
+            except Exception as e:
+                print(f"DEBUG: Error filtrando fechas de pedidos: {e}", flush=True)
+
         # DNA RPK: Normalizar columnas y limpiar articulos
         df_orders['ARTICULO'] = df_orders['ARTICULO'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
         
@@ -219,7 +234,7 @@ def get_simulation_data(db: Session, scenario_id: int = None, dias_laborales: in
     
     if use_actual_data:
         scenario_name = "Escenario Actual (Nexus v2)"
-        df, source_file = get_actual_dataframe()
+        df, source_file = get_actual_dataframe(dias_laborales)
         if df is None:
             print("DEBUG: Fallo al cargar datos ACTUALES. Usando BASE como fallback.", flush=True)
             df = get_base_dataframe()
