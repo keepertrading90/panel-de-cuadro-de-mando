@@ -19,7 +19,10 @@ El sistema está estructurado modularmente para garantizar escalabilidad y mante
 3.  **Servidor de Aplicación (API)**:
     *   `backend/api/server.py`: Orquestador FastAPI. Expone endpoints REST para simular en tiempo real, guardar escenarios y servir los archivos estáticos del frontend.
 
-4.  **Interfaz de Usuario (Frontend)**:
+4.  **Integración Nexus v2 (Transactional Bridge)**:
+    *   `get_actual_dataframe()`: Localiza y procesa el último Snapshot de pedidos (`.parquet`) del proyecto hermano *Plan Maestro RPK NEXUS_v2*.
+
+5.  **Interfaz de Usuario (Frontend)**:
     *   `frontend/ui/`: Contiene `index.html`, `styles.css` y `app.js`. La UI es reactiva y se comunica con la API para reflejar cambios instantáneamente.
 
 ---
@@ -40,6 +43,7 @@ El proyecto incluye una versión denominada **v1_local** o **Classic**, ubicada 
 
 ### Sidebar / Top Nav (Navegación)
 - **🏠 Escenario Base**: Resetea todas las modificaciones locales y carga la situación actual del Excel Maestro.
+- **📈 Escenario Actual (Nexus v2)**: Carga reactiva de pedidos reales desde el Data Lake. Permite contrastar la saturación teórica vs. la carga de trabajo real pendiente.
 - **➕ Crear Escenario**: Captura el estado actual de la simulación y solicita un nombre para guardarlo.
 - **📂 Gestionar**: Panel para visualizar, cargar o eliminar escenarios guardados en la BD local.
 - **📊 Comparativa**: Selecciona dos escenarios para enfrentar sus KPIs en un dashboard dual.

@@ -5,6 +5,10 @@ import json
 import time
 import logging
 
+import mimetypes
+mimetypes.add_type('text/css', '.css')
+mimetypes.add_type('application/javascript', '.js')
+
 # Configuración de Logging para producción/remoto
 logging.basicConfig(
     filename='error_log.log',
@@ -45,8 +49,11 @@ app = FastAPI(title="RPK Simulator API")
 
 # Determinar rutas relativas para el frontend
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(BASE_DIR, "..", "..", "frontend", "ui")
-print(f"DEBUG: Frontend dir: {FRONTEND_DIR}", flush=True)
+FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "frontend", "ui"))
+print(f"DEBUG: FRONTEND_DIR -> {FRONTEND_DIR}", flush=True)
+print(f"DEBUG: Existe FRONTEND_DIR? {os.path.exists(FRONTEND_DIR)}", flush=True)
+if os.path.exists(FRONTEND_DIR):
+    print(f"DEBUG: Archivos en FRONTEND_DIR: {os.listdir(FRONTEND_DIR)}", flush=True)
 
 # CORS para el frontend
 app.add_middleware(
@@ -174,6 +181,14 @@ async def get_base_simulation(db: Session = Depends(get_db), dias_laborales: Opt
         logger.error(f"Error en simulation/base: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/simulate/actual")
+async def get_actual_simulation(db: Session = Depends(get_db), dias_laborales: Optional[int] = None, horas_turno: Optional[int] = None):
+    try:
+        return simulation_core.get_simulation_data(db, dias_laborales=dias_laborales, horas_turno=horas_turno, use_actual_data=True)
+    except Exception as e:
+        logger.error(f"Error en simulation/actual: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/simulate/{scenario_id}")
 async def get_scenario_simulation(scenario_id: int, db: Session = Depends(get_db), dias_laborales: Optional[int] = None, horas_turno: Optional[int] = None):
     try:
@@ -290,16 +305,13 @@ def update_scenario_full(scenario_id: int, scenario_data: ScenarioCreate, db: Se
     db.refresh(db_scenario)
     return db_scenario
 
-# Servir frontend estático
+# Servir frontend estático directamente en la raíz (MODO ROBUSTO)
 if os.path.exists(FRONTEND_DIR):
-    app.mount("/ui", StaticFiles(directory=FRONTEND_DIR), name="ui")
-
-@app.get("/")
-async def read_index():
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "Frontend no encontrado en " + FRONTEND_DIR}
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
+else:
+    @app.get("/")
+    async def read_index_fallback():
+        return {"error": "Frontend dir not found", "path": FRONTEND_DIR}
 
 if __name__ == "__main__":
     import uvicorn

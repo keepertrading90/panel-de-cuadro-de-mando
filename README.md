@@ -8,6 +8,7 @@ Sistema avanzado de simulación de producción y saturación de centros de traba
 ## 🚀 Características Principales
 
 - **Simulación Dinámica**: Ajuste en tiempo real de OEE, Cadencias (PPM) y Demanda.
+- **Datos Reales de Nexus v2**: Conexión directa con los pedidos pendientes para cálculo de saturación actual.
 - **Gestión de Escenarios**: Guardado y recuperación de configuraciones de planta.
 - **Comparativa de Escenarios**: Análisis visual de variaciones entre modelos de producción.
 - **Cálculo de MOD**: Integración del Ratio Persona-Máquina para dimensionamiento de plantilla.
